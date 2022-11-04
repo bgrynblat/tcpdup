@@ -3,7 +3,8 @@ import { Socket, listen } from "bun";
 import {
     PORT,
     RX_TIMEOUT_MS,
-    forwards
+    forwards,
+    DEBUG
 } from "./common"
 
 const sockets = new Map<string, {socket: Socket<string>, timeout: number | NodeJS.Timeout | undefined}>()
@@ -28,8 +29,8 @@ const forward = (hostname: string, port: number, data:BufferSource, onMessage?:(
             port,
             socket: {
                 open(socket) {
-                    console.log(`Connected to ${hostname}:${port}`)
                     const id = "tx_"+Date.now()+"_"+Math.floor(Math.random()*1000)
+                    DEBUG && console.log(`${id}: Connected to ${hostname}:${port}`)
                     socket.data = id
                     socket.write(data)
                     if(!onMessage)  socket.end() // Shut down right away if we don't forward the response back
@@ -37,13 +38,13 @@ const forward = (hostname: string, port: number, data:BufferSource, onMessage?:(
                 },
                 data(socket, message) {
                     startTimeout(socket.data, socket)
-                    console.log(`Received data from ${socket.data}: ${Buffer.from(data as ArrayBuffer)}`)
+                    DEBUG && console.log(`${socket.data}: Received data ${Buffer.from(data as ArrayBuffer)}`)
                     onMessage && onMessage(message)
                     socket.end()
                 },
                 drain(socket) {},
                 close(socket) {
-                    console.log("Closing socket", socket.data);
+                    DEBUG && console.log(`${socket.data}: Closing socket`);
                     cancelTimeout(socket.data)
                     res()
                 },
@@ -61,18 +62,18 @@ const server = listen({
         open(socket) {
             const id = "rx_"+Date.now()+"_"+Math.floor(Math.random()*1000)
             socket.data = id
-            console.log(`Socket opened ${id}`)
+            DEBUG && console.log(`${id}: Socket opened`)
             startTimeout(id, socket)
         },
         data(socket, data) {
             cancelTimeout(socket.data)
             const view = Buffer.from(data as ArrayBuffer);
-            console.log(`Received data from ${socket.data}: ${view}`)
+            DEBUG && console.log(`${socket.data}: Received data ${view}`)
 
             const promises = forwards.map((f, i) => {
                 const onMessage = (message:BufferSource) => {
                     const v = Buffer.from(message as ArrayBuffer);
-                    console.log(`Forwarding data back from ${f.hostname}:${f.port}: ${v}`)
+                    DEBUG && console.log(`${socket.data}: Forwarding data back from ${f.hostname}:${f.port}: ${v}`)
                     socket.write(message)
                     socket.end()
                 }
@@ -84,14 +85,14 @@ const server = listen({
         },
         drain(socket) {
             cancelTimeout(socket.data)
-            console.log(`Socket drained ${socket.data}`)
+            DEBUG && console.log(`${socket.data}: Socket drained`)
         },
         close(socket) {
             cancelTimeout(socket.data)
-            console.log(`Socket closed ${socket.data}`)
+            DEBUG && console.log(`${socket.data}: Socket closed`)
         },
         error(socket, error) {
-            console.log(`Socket error ${socket.data}: ${error}`)
+            console.error(`${socket.data}: Socket error: ${error}`)
         },
     },
     data: ""

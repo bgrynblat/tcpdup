@@ -3,7 +3,8 @@ import process from "process"
 import {
     PORT,
     RX_TIMEOUT_MS,
-    forwards
+    forwards,
+    DEBUG
 } from "./common"
 
 class TCPSocket extends Socket {
@@ -30,19 +31,19 @@ const forward = (hostname: string, port: number, data:Buffer, onMessage?:(messag
         const socket = new TCPSocket()
         socket.id = "tx_"+Date.now()+"_"+Math.floor(Math.random()*1000)
         socket.connect(port, hostname, () => {
-            console.log(`Connected to ${hostname}:${port}`)
+            DEBUG && console.log(`${socket.id}: Connected to ${hostname}:${port}`)
             socket.write(data)
             if(!onMessage)  socket.destroy() // Shut down right away if we don't forward the response back
             else    startTimeout(socket.id, socket)
         })
         socket.on("data", (message) => {
             startTimeout(socket.id, socket)
-            console.log(`Received data from ${socket.id}: ${message.toString()}`)
+            DEBUG && console.log(`${socket.id}: Received data ${message.toString()}`)
             onMessage && onMessage(message)
             socket.destroy()
         })
         socket.on("close", () => {
-            console.log("Closing socket", socket.id);
+            DEBUG && console.log(`${socket.id}: Closing socket`);
             cancelTimeout(socket.id)
             res()
         })
@@ -57,11 +58,11 @@ const server = createServer()
 
     socket.on("data", (data:Buffer) => {
         cancelTimeout(socket.id)
-        console.log(`Received data from ${socket.id}: ${data.toString()}`)
+        DEBUG && console.log(`${socket.id}: Received data ${data.toString()}`)
     
         const promises = forwards.map((f, i) => {
             const onMessage = (message:Buffer) => {
-                console.log(`Forwarding data back from ${f.hostname}:${f.port}: ${message.toString()}`)
+                DEBUG && console.log(`${socket.id}: Forwarding data back from ${f.hostname}:${f.port}: ${message.toString()}`)
                 socket.write(message)
                 socket.destroy()
             }
@@ -74,15 +75,15 @@ const server = createServer()
 
     socket.on("close", (e) => {
         cancelTimeout(socket.id)
-        console.log(`Socket closed ${socket.id}`, e)
+        DEBUG && console.log(`${socket.id}: Socket closed`, e)
     })
 
-    console.log(`Socket opened ${id}`)
+    DEBUG && console.log(`${id}: Socket opened`)
     startTimeout(id, socket)
 })
 
 server.on('error', (err:Error) => {
-    console.log("Error", err.message)
+    console.error("Error", err.message)
 })
 
 function signalHandler() {
