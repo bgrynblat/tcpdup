@@ -1,0 +1,30 @@
+# FROM jarredsumner/bun:edge
+FROM alpine:latest as installer
+
+WORKDIR /tmp
+RUN apk --no-cache add unzip
+
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then \
+        ARCH="x64"; \
+    elif [ "$ARCH" = "arm64" ]; then \
+        ARCH="aarch64"; \
+    fi && \
+    echo $ARCH > /tmp/arch
+
+RUN echo "DOWNLOAD: https://github.com/oven-sh/bun/releases/latest/download/bun-linux-$(cat /tmp/arch).zip"
+
+RUN wget https://github.com/oven-sh/bun/releases/latest/download/bun-linux-$(cat /tmp/arch).zip -O bun-linux.zip
+RUN unzip bun-linux.zip
+RUN mv /tmp/bun-linux-$(cat /tmp/arch)/bun /usr/local/bin/bun
+
+FROM debian:bookworm-slim
+COPY --from=installer  /usr/local/bin/bun /usr/local/bin
+
+WORKDIR /app
+COPY package.json package.json
+# COPY bun.lockb bun.lockb
+RUN /usr/local/bin/bun install
+COPY src src/
+EXPOSE 5010
+ENTRYPOINT ["bun", "run", "src/index.ts"]

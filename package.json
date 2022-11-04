@@ -1,0 +1,13 @@
+{
+  "name": "tcpdup",
+  "scripts": {
+    "start": "node lib/index.js",
+    "build": "tsc",
+    "test": "jest"
+  },
+  "devDependencies": {
+    "@types/node": "^18.11.9",
+    "bun-types": "^0.2.0",
+    "typescript": "^4.8.4"
+  }
+}
