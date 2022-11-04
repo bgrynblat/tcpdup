@@ -38,7 +38,7 @@ const forward = (hostname: string, port: number, data:BufferSource, onMessage?:(
                 },
                 data(socket, message) {
                     startTimeout(socket.data, socket)
-                    DEBUG && console.log(`${socket.data}: Received data ${Buffer.from(data as ArrayBuffer)}`)
+                    DEBUG && console.log(`${socket.data}: Received data ${Buffer.from(message as ArrayBuffer)}`)
                     onMessage && onMessage(message)
                     socket.end()
                 },

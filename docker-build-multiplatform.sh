@@ -22,7 +22,8 @@ docker buildx build \
   --platform linux/arm64,linux/amd64 \
   --push \
   $CACHE \
-  -t $REPO/$IMAGE:node \
+  -t $REPO/$IMAGE:$TAG \
+  -t $REPO/$IMAGE:$TAG-node \
   -f ./Dockerfile.node .
 
 #linux/amd64 doesn't compile for some reason
@@ -30,5 +31,5 @@ docker buildx build \
   --platform linux/arm64 \
   --push \
   $CACHE \
-  -t $REPO/$IMAGE:bun \
+  -t $REPO/$IMAGE:$TAG-bun \
   -f ./Dockerfile.bun .
