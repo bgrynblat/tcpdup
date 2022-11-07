@@ -1,7 +1,7 @@
 {
   "name": "tcpdup",
   "scripts": {
-    "start": "node lib/index.js",
+    "start": "npm run build && node lib/index.js",
     "build": "tsc",
     "test": "jest"
   },
