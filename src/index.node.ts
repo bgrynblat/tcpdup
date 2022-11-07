@@ -29,9 +29,12 @@ const forward = (hostname: string, port: number, data:Buffer, onMessage?:(messag
     return new Promise((res, rej) => {
         // console.log(`Forwarding to ${hostname}:${port}`)
         const socket = new TCPSocket()
-        socket.id = "tx_"+Date.now()+"_"+Math.floor(Math.random()*1000)
+        socket.id = "tx_"+Date.now()+"_"+hostname+":"+port
+        startTimeout(socket.id, socket) // Connection timeout
+
         socket.connect(port, hostname, () => {
-            DEBUG && console.log(`${socket.id}: Connected to ${hostname}:${port}`)
+            DEBUG && console.log(`${socket.id}: Connected`)
+            cancelTimeout(socket.id)
             socket.write(data)
             if(!onMessage)  socket.destroy() // Shut down right away if we don't forward the response back
             else    startTimeout(socket.id, socket)
@@ -46,6 +49,11 @@ const forward = (hostname: string, port: number, data:Buffer, onMessage?:(messag
             DEBUG && console.log(`${socket.id}: Closing socket`);
             cancelTimeout(socket.id)
             res()
+        })
+        socket.on("error", (err) => {
+            console.error(`${socket.id}: ERROR`, err.message)
+            cancelTimeout(socket.id)
+            rej(err)
         })
     })
 }
@@ -68,6 +76,9 @@ const server = createServer()
             }
     
             return forward(f.hostname, f.port, data, !i ? onMessage : undefined)
+            .catch(err => {
+                // DO NOTHING
+            })
         })
     
         startTimeout(socket.id, socket)
@@ -76,6 +87,11 @@ const server = createServer()
     socket.on("close", (e) => {
         cancelTimeout(socket.id)
         DEBUG && console.log(`${socket.id}: Socket closed`, e)
+    })
+
+    socket.on("error", (err) => {
+        console.error(`${socket.id}: ERROR`, err.message)
+        cancelTimeout(socket.id)
     })
 
     DEBUG && console.log(`${id}: Socket opened`)

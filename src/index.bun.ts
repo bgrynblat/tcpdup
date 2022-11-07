@@ -8,7 +8,6 @@ import {
 } from "./common"
 
 const sockets = new Map<string, {socket: Socket<string>, timeout: number | NodeJS.Timeout | undefined}>()
-
 const startTimeout = (id:string, socket:Socket<string>) => {
     let timeout
     if(RX_TIMEOUT_MS > 0)
@@ -24,33 +23,36 @@ const cancelTimeout = (id:string) => {
 const forward = (hostname: string, port: number, data:BufferSource, onMessage?:(message:BufferSource) => void):Promise<void> => {
     return new Promise((res, rej) => {
         // console.log(`Forwarding to ${hostname}:${port}`)
+        const id = "tx_"+Date.now()+"_"+hostname+":"+port
         Bun.connect({
             hostname,
             port,
             socket: {
                 open(socket) {
-                    const id = "tx_"+Date.now()+"_"+Math.floor(Math.random()*1000)
-                    DEBUG && console.log(`${id}: Connected to ${hostname}:${port}`)
-                    socket.data = id
+                    DEBUG && console.log(`${id}: Connected`)
                     socket.write(data)
                     if(!onMessage)  socket.end() // Shut down right away if we don't forward the response back
-                    else    startTimeout(socket.data, socket)
+                    else    startTimeout(id, socket)
                 },
                 data(socket, message) {
-                    startTimeout(socket.data, socket)
-                    DEBUG && console.log(`${socket.data}: Received data ${Buffer.from(message as ArrayBuffer)}`)
+                    startTimeout(id, socket)
+                    DEBUG && console.log(`${id}: Received data ${Buffer.from(message as ArrayBuffer)}`)
                     onMessage && onMessage(message)
                     socket.end()
                 },
                 drain(socket) {},
                 close(socket) {
-                    DEBUG && console.log(`${socket.data}: Closing socket`);
-                    cancelTimeout(socket.data)
+                    DEBUG && console.log(`${id}: Closing socket`);
+                    cancelTimeout(id)
                     res()
                 },
+                error(socket, err) {
+                    console.error(`${id}: ERROR`, err.message)
+                    cancelTimeout(id)
+                    rej(err)
+                }
             },
-        
-            data: ""
+            data: id
         });
     })
 }
